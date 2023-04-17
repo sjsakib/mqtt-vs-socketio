@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MQTT demo client</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js" defer></script>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+    <script
+      src="https://cdn.socket.io/4.6.0/socket.io.min.js"
+      integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      document.addEventListener('alpine:init', () => {
+        Alpine.data('mqttDemoApp', () => {
+          const data = {
+            init() {
+              this.client = mqtt.connect('ws:localhost:8080');
+              this.client.on('connect', () => console.log('mqtt connected....'));
+              this.client.on('disconnect', () => console.log('mqtt disconnected....'));
+              this.client.on('message', message => {
+                this.receivedCount += 1;
+              });
+            },
+            topic: 'test',
+            message: '',
+            receivedCount: 0,
+            xTimes: 1,
+            publish() {
+              fetch(`http://localhost:4000/send-message`, {
+                method: 'POST',
+                headers: {
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  times: this.xTimes,
+                  message: this.message,
+                  topic: this.topic,
+                  medium: 'mqtt',
+                }),
+              });
+            },
+            subscribe() {
+              console.log('subscribing to: ', this.topic);
+              this.client.subscribe({ [this.topic]: { qos: 2 } });
+            },
+          };
+          return data;
+        });
+      });
+
+      document.addEventListener('alpine:init', () => {
+        Alpine.data('socketIODemoApp', () => {
+          const data = {
+            init() {
+              this.socket = io('ws://localhost:4000');
+              this.socket.on('connect', () => console.log('socket.io connected'));
+              this.socket.on('disconnect', () =>
+                console.log('socket.io disconnected....')
+              );
+            },
+            topic: 'test',
+            message: '',
+            receivedCount: 0,
+            xTimes: 1,
+            publish() {
+              fetch(`http://localhost:4000/send-message`, {
+                method: 'POST',
+                headers: {
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  times: this.xTimes,
+                  message: this.message,
+                  topic: this.topic,
+                  medium: 'socketio',
+                }),
+              });
+            },
+            subscribe() {
+              console.log('subscribing to: ', this.topic);
+              this.socket.on(this.topic, message => {
+                console.log('got data: ', message.toString());
+                console.log('rc', this.receivedCount);
+                this.receivedCount += 1;
+              });
+            },
+          };
+          return data;
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <h2>MQTT</h2>
+    <div x-data="mqttDemoApp">
+      topic: <input placeholder="topic to subscribe" x-model="topic" /> message:
+      <input x-model="message" /> <br />
+      <br />
+      publish <input x-model="xTimes" />
+      <button @click="publish">publish</button>
+      <button @click="subscribe">subscribe</button>
+      <p x-text="`received message count: ${receivedCount}`"></p>
+    </div>
+    <br />
+
+    <h2>SocketIO</h2>
+    <div x-data="socketIODemoApp">
+      topic: <input placeholder="topic to subscribe" x-model="topic" /> message:
+      <input x-model="message" /> <br />
+      <br />
+      publish <input x-model="xTimes" /> time(s)
+      <button @click="publish">publish</button>
+      <button @click="subscribe">subscribe</button>
+      <p x-text="`received message count: ${receivedCount}`"></p>
+    </div>
+  </body>
+</html>
